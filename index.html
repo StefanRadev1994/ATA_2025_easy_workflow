@@ -1,0 +1,824 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ATA 2025 Thyroid Cancer Clinical Decision Support</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            navy: { 50: '#f0f4f8', 100: '#d9e2ec', 200: '#bcccdc', 300: '#9fb3c8', 400: '#829ab1', 500: '#627d98', 600: '#486581', 700: '#334e68', 800: '#243b53', 900: '#102a43' },
+            clinical: { 50: '#effcf6', 100: '#c6f7e2', 200: '#8eedc7', 300: '#65d6ad', 400: '#3ebd93', 500: '#27ab83', 600: '#199473', 700: '#147d64', 800: '#0c6b58', 900: '#014d40' },
+          }
+        }
+      }
+    }
+  </script>
+  <script crossorigin src="https://unpkg.com/react@18.2.0/umd/react.production.min.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.25.6/babel.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg-primary: #f7f9fc;
+      --bg-card: #ffffff;
+      --border-light: #e2e8f0;
+      --accent: #0c6b58;
+      --accent-light: #effcf6;
+      --text-primary: #1a2b3c;
+      --text-secondary: #627d98;
+    }
+    body { font-family: 'DM Sans', system-ui, sans-serif; background: var(--bg-primary); color: var(--text-primary); }
+    h1, h2, h3, .heading { font-family: 'Fraunces', Georgia, serif; }
+
+    .card-medical {
+      background: var(--bg-card);
+      border: 1px solid var(--border-light);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(16, 42, 67, 0.04), 0 6px 16px rgba(16, 42, 67, 0.03);
+    }
+
+    .risk-low { background: #effcf6; color: #014d40; border-color: #8eedc7; }
+    .risk-low-int { background: #fffbea; color: #5c4813; border-color: #f0d76e; }
+    .risk-int-high { background: #fff3e0; color: #7c4a0d; border-color: #f5a623; }
+    .risk-high { background: #fde8e8; color: #7c1d1d; border-color: #e53e3e; }
+
+    .resp-excellent { background: #effcf6; color: #014d40; }
+    .resp-indeterminate { background: #eef2ff; color: #3730a3; }
+    .resp-biochem { background: #fffbea; color: #5c4813; }
+    .resp-structural { background: #fde8e8; color: #7c1d1d; }
+
+    .evidence-panel {
+      max-height: 0; overflow: hidden;
+      transition: max-height 0.4s ease, opacity 0.3s ease;
+      opacity: 0;
+    }
+    .evidence-panel.open { max-height: 4000px; opacity: 1; }
+
+    .medical-bg {
+      background-image: radial-gradient(circle at 1px 1px, rgba(16, 42, 67, 0.015) 1px, transparent 0);
+      background-size: 24px 24px;
+    }
+
+    .btn-primary {
+      background: var(--accent); color: white; transition: all 0.2s ease;
+    }
+    .btn-primary:hover:not(:disabled) { background: #014d40; transform: translateY(-1px); box-shadow: 0 4px 12px rgba(12, 107, 88, 0.25); }
+    .btn-primary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    .btn-secondary {
+      background: white; border: 1px solid var(--border-light); color: var(--text-secondary); transition: all 0.2s ease;
+    }
+    .btn-secondary:hover:not(:disabled) { border-color: #9fb3c8; color: var(--text-primary); }
+
+    .option-card {
+      border: 1.5px solid var(--border-light); border-radius: 10px; padding: 12px 14px;
+      cursor: pointer; transition: all 0.15s ease;
+    }
+    .option-card:hover { border-color: #9fb3c8; background: #f7f9fc; }
+    .option-card.selected { border-color: var(--accent); background: var(--accent-light); }
+
+    .input-field {
+      width: 100%; padding: 10px 14px; border: 1.5px solid var(--border-light);
+      border-radius: 8px; font-size: 14px; transition: border-color 0.15s ease; background: white;
+    }
+    .input-field:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(12, 107, 88, 0.08); }
+    .input-field.error { border-color: #e53e3e; }
+    .input-field.error:focus { box-shadow: 0 0 0 3px rgba(229, 62, 62, 0.1); }
+    .input-field:disabled { background: #f0f4f8; color: #9fb3c8; cursor: not-allowed; }
+
+    select.input-field {
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23627d98' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: right 12px center; padding-right: 36px;
+    }
+
+    .section-line { height: 1px; background: linear-gradient(to right, transparent, var(--border-light), transparent); }
+
+    .section-appear { animation: sectionIn 0.35s ease-out; }
+    @keyframes sectionIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+
+    .patient-sidebar {
+      position: sticky; top: 24px;
+    }
+  </style>
+</head>
+<body class="min-h-screen medical-bg">
+  <div id="root"></div>
+
+  <script type="text/babel">
+    const { useMemo, useState, useCallback, useEffect, useRef } = React;
+
+    const CURRENT_YEAR = new Date().getFullYear();
+
+    const HISTOLOGY_OPTIONS = [
+      "Papillary Thyroid Cancer (PTC)", "Follicular Thyroid Cancer (FTC)",
+      "Oncocytic Thyroid Cancer (OTC)", "High-Grade Non-Anaplastic Thyroid Cancer (HGNATC)",
+      "NIFTP", "Medullary Thyroid Cancer (MTC)"
+    ];
+    const T_STAGES = [
+      { value: "1a", label: "T1a \u2014 intrathyroidal, \u22641 cm" },
+      { value: "1b", label: "T1b \u2014 intrathyroidal, 1\u20132 cm" },
+      { value: "2",  label: "T2 \u2014 intrathyroidal, 2\u20134 cm" },
+      { value: "3a", label: "T3a \u2014 intrathyroidal, >4 cm" },
+      { value: "3b", label: "T3b \u2014 gross ETE (strap muscles)" },
+      { value: "4a", label: "T4a \u2014 moderately advanced (larynx, trachea, esophagus, RLN)" },
+      { value: "4b", label: "T4b \u2014 very advanced (prevertebral fascia, carotid)" }
+    ];
+    const N_STAGES = [
+      { value: "0",  label: "N0 \u2014 no regional LN metastasis" },
+      { value: "1a", label: "N1a \u2014 level VI/VII" },
+      { value: "1b", label: "N1b \u2014 lateral cervical or retropharyngeal" }
+    ];
+    const M_STAGES = [
+      { value: "0", label: "M0 \u2014 no distant metastasis" },
+      { value: "1", label: "M1 \u2014 distant metastasis" }
+    ];
+    const AS_CRITERIA = [
+      { key: "presumedPTCmicro", label: "Presumed PTC \u22641 cm (cT1aN0M0)" },
+      { key: "noClinicalNodes",  label: "No clinical/sonographic LN metastasis" },
+      { key: "noETEorInvasion",  label: "No ETE or local invasion on imaging" },
+      { key: "notNearCritical",  label: "Not abutting trachea or RLN" }
+    ];
+
+    /* ===================================================================
+       CLINICAL LOGIC
+       =================================================================== */
+    function pickRisk({ histology, tStage, nStage, mStage, activeSurveillance }) {
+      if (activeSurveillance === "Yes") return "Low";
+      var h = histology || "";
+      if (h.includes("(MTC)") || h.includes("High-Grade")) return "High";
+      if (mStage === "1") return "High";
+      if (tStage === "4a" || tStage === "4b") return "High";
+      if (nStage === "1b") return "High";
+      if (tStage === "3a" || tStage === "3b" || nStage === "1a") return "Intermediate-High";
+      if (tStage === "2" || tStage === "1b") return "Low-Intermediate";
+      return "Low";
+    }
+
+    function pickResponse({ activeSurveillance, suspiciousUS, structuralDisease, tgTrend, tgAbTrend }) {
+      if (activeSurveillance === "Yes") return "Indeterminate";
+      if (structuralDisease === "Yes" || suspiciousUS === "Yes") return "Structurally Incomplete";
+      if (tgTrend === "Rising" || tgAbTrend === "Rising") return "Biochemically Incomplete";
+      return "Excellent";
+    }
+
+    function getTSHDetails({ risk, response }) {
+      if (response === "Structurally Incomplete") return { category: "Below normal range", range: "0.1\u20130.5 mIU/L (or <0.1 mIU/L if high disease burden)", rationale: "ATA 2025: Structurally incomplete response warrants TSH suppression. Target <0.1 mIU/L for significant structural disease burden, 0.1\u20130.5 mIU/L for lower-volume disease. Balance against AF risk (HR 1.6 in >65 yr), BMD loss, angina." };
+      if (response === "Biochemically Incomplete") return { category: "Below normal range", range: "0.1\u20130.5 mIU/L", rationale: "ATA 2025: Biochemically incomplete \u2192 mild suppression 0.1\u20130.5 mIU/L. ~30% develop structural disease over 5\u201310 yr. In patients >65 or CV comorbidities, accept 0.3\u20130.5 mIU/L." };
+      if (risk === "High") return { category: "Below normal range", range: "<0.1 mIU/L for 1\u20132 yr, then 0.1\u20130.5 mIU/L if excellent response", rationale: "ATA 2025: High-risk \u2192 initial <0.1 mIU/L for 1\u20132 yr. If excellent response (Tg <0.2, neg imaging), relax to 0.1\u20130.5. LT4 dose: 2.0\u20132.5 mcg/kg/day." };
+      if (risk === "Intermediate-High") return { category: "Below normal range", range: "0.1\u20130.5 mIU/L initially; consider 0.5\u20132.0 mIU/L after sustained excellent response (2\u20135 yr)", rationale: "ATA 2025: Intermediate-high \u2192 initial 0.1\u20130.5 mIU/L. After 2\u20135 yr sustained excellent response, relax to 0.5\u20132.0. LT4: 1.8\u20132.2 mcg/kg/day." };
+      if (risk === "Low-Intermediate") return { category: "Within normal range", range: "0.5\u20132.0 mIU/L", rationale: "ATA 2025: Low-intermediate + excellent response \u2192 no suppression. TSH 0.5\u20132.0 mIU/L. LT4: 1.6\u20131.8 mcg/kg/day (TT) or 1.0\u20131.4 (lobectomy)." };
+      return { category: "Within normal range", range: "0.5\u20132.0 mIU/L", rationale: "ATA 2025: Low risk + excellent \u2192 TSH 0.5\u20132.0 mIU/L. No benefit to suppression. Post-lobectomy may not need LT4. After 10\u201315 yr excellent response, consider discharge per ATA 2025 complete remission framework." };
+    }
+
+    function shouldConsiderRepeatRAI(p) {
+      if (p.receivedRAI !== "Yes") return false;
+      return (p.response === "Structurally Incomplete" || p.response === "Biochemically Incomplete" || p.structuralDisease === "Yes" || p.suspiciousUS === "Yes" || p.tgTrend === "Rising" || p.tgAbTrend === "Rising");
+    }
+    function shouldConsiderInitialRAI(p) {
+      if (p.receivedRAI === "Yes" || p.surgeryType !== "Total Thyroidectomy") return false;
+      if ((p.histology || "").includes("(MTC)")) return false;
+      return (p.risk === "Intermediate-High" || p.risk === "High");
+    }
+
+    /* ===================================================================
+       ATA 2025 RECOMMENDATION BUILDER
+       =================================================================== */
+    function buildMockRecommendation(payload) {
+      var risk = pickRisk(payload);
+      var response = pickResponse(payload);
+      var tshDetails = getTSHDetails({ risk: risk, response: response });
+      var repeatRAI = shouldConsiderRepeatRAI({ receivedRAI: payload.receivedRAI, response: response, structuralDisease: payload.structuralDisease, suspiciousUS: payload.suspiciousUS, tgTrend: payload.tgTrend, tgAbTrend: payload.tgAbTrend });
+      var initialRAI = shouldConsiderInitialRAI({ receivedRAI: payload.receivedRAI, risk: risk, surgeryType: payload.surgeryType, histology: payload.histology });
+      var h = payload.histology || "";
+      var isMTC = h.includes("(MTC)");
+      var isHGNATC = h.includes("High-Grade");
+      var isLob = payload.surgeryType === "Lobectomy";
+
+      var immediate = [];
+
+      if (payload.activeSurveillance === "Yes") {
+        immediate = [
+          "Baseline neck US: document nodule dimensions (3 axes), echogenicity, margins, vascularity, calcifications, relationship to trachea/RLN. Repeat at 6 months, then every 6\u201312 months for 5 years.",
+          "Baseline Tg and TgAb (optional per ATA 2025; aids monitoring if FNA-confirmed PTC). Document assay manufacturer for longitudinal consistency.",
+          "Counsel on intervention triggers: growth >3 mm in largest dimension, development of ETE, suspicious cervical lymphadenopathy.",
+          "Assess patient preference for surveillance vs. surgery at each visit. Document shared decision-making.",
+          "Follow-up in 6 months with US. If stable at 5 years, extend to 12\u201324 months."
+        ];
+      } else if (isMTC) {
+        immediate = [
+          "MTC protocol: calcitonin (Ctn) and CEA at 2\u20133 months post-op as baseline. Ctn doubling time <6 mo = aggressive; 6\u201324 mo = intermediate; >24 mo = indolent.",
+          "RET mutation: germline testing for all MTC (rule out MEN2A/2B). If positive, screen phaeochromocytoma (metanephrines) and hyperparathyroidism (Ca, PTH). Somatic RET on tumour for therapy.",
+          "RAI NOT indicated for MTC. Structural disease: surgical options (central/lateral dissection). Unresectable: EBRT 50\u201360 Gy.",
+          "Ctn >150 pg/mL or rising CEA: CT neck/chest, liver MRI, bone scan or FDG PET/CT. Ctn <150 and stable CEA: serial q3\u20136 mo.",
+          "Progressive/unresectable MTC: vandetanib 300 mg/d or cabozantinib 140 mg/d. RET-mutated: selpercatinib 120\u2013160 mg BID or pralsetinib 400 mg/d. MDT review."
+        ];
+      } else if (response === "Excellent") {
+        if (risk === "Low") {
+          immediate = [
+            "Neck US at 12 months (thyroid bed + central/lateral compartments). If negative, annually for 3 yr, then every 2\u20133 yr.",
+            "Tg and TgAb at 6\u201312 months. Target: suppressed Tg <0.2 ng/mL, stimulated <1 ng/mL. Same assay platform for all measurements.",
+            "LT4 to TSH 0.5\u20132.0 mIU/L. " + (isLob ? "Post-lobectomy: may not need supplementation if TSH <4.5." : "Post-TT: 1.6\u20131.8 mcg/kg/day; TSH q6\u20138 wk until stable."),
+            "RAI NOT recommended for low-risk excellent response. " + (isLob ? "Completion thyroidectomy not routinely needed." : "No further surgery required."),
+            "Consider extended intervals after 3\u20135 yr. Discharge from oncologic follow-up after 10\u201315 yr sustained excellent response per ATA 2025."
+          ];
+        } else if (risk === "Low-Intermediate") {
+          immediate = [
+            "Neck US at 6\u201312 months (thyroid bed, central VI, lateral II\u2013V). Annually for 5 yr.",
+            "Tg and TgAb q6 mo for 2 yr, then annually. Target: Tg <0.2 ng/mL. Consider stimulated Tg at 12\u201324 mo if low-level detectable.",
+            "LT4 to TSH 0.5\u20132.0 mIU/L (no suppression for this risk + excellent response). TSH q6\u20138 wk until stable.",
+            "RAI remnant ablation (30 mCi / 1.1 GBq) may be considered if post-TT Tg >0.2 ng/mL, but not mandatory per ATA 2025.",
+            "Sustained excellent response 3\u20135 yr: transition to annual Tg + intermittent US."
+          ];
+        } else if (risk === "Intermediate-High") {
+          immediate = [
+            "Neck US at 6 months with compartment mapping (central VI, lateral II\u2013V). Repeat q6\u201312 mo for 5 yr.",
+            "Tg and TgAb q6 mo. Target: Tg <0.2 ng/mL. Stimulated Tg >2 ng/mL \u2192 diagnostic I-131 scan or cross-sectional imaging.",
+            "LT4 for TSH 0.1\u20130.5 mIU/L initially; reassess for 0.5\u20132.0 after 2\u20135 yr sustained excellent response.",
+            (payload.receivedRAI === "Yes" ? "RAI already given. No repeat needed with excellent response." : "Consider RAI 100\u2013150 mCi (3.7\u20135.5 GBq). Prep: low-iodine diet, TSH >30 mIU/L."),
+            "Excellent response reduces recurrence to 5\u201310% (vs 15\u201340%). Close surveillance \u22655 yr before de-escalation."
+          ];
+        } else {
+          immediate = [
+            "Neck US q6 mo for 3 yr, then annually. Consider CT neck/chest at 12 mo if N1b or bulky disease.",
+            "Tg and TgAb q3\u20136 mo. Stimulated Tg (rhTSH) at 9\u201312 mo; <1 ng/mL confirms excellent response. TgAb: trend as surrogate.",
+            "LT4 for TSH <0.1 mIU/L for 1\u20132 yr. After sustained excellent response, relax to 0.1\u20130.5. DEXA baseline + q2 yr; cardiac assessment annually if >60 yr.",
+            (payload.receivedRAI === "Yes" ? "RAI already given. No repeat needed. If future recurrence, re-evaluate RAI candidacy." : "RAI 150\u2013200 mCi (5.5\u20137.4 GBq). Prep: low-iodine diet, TSH >30. Post-therapy WBS at 5\u20137 days."),
+            "Lifelong follow-up for initially high-risk. Excellent response drops recurrence to 5\u201310%."
+          ];
+        }
+      } else if (response === "Biochemically Incomplete") {
+        var marker = [payload.tgTrend === "Rising" ? "Rising Tg" : "", payload.tgAbTrend === "Rising" ? "Rising TgAb" : ""].filter(function(x) { return x; }).join(" and ") || "Abnormal biochemical markers";
+        immediate = [
+          marker + ": confirm trend with repeat in 3 mo (same assay/lab). Rule out interference (heterophilic Ab, biotin). Tg >10 ng/mL or doubling time <12 mo \u2192 CT neck/chest or FDG PET/CT.",
+          "Neck US: focused eval for structural correlate. Suspicious nodes >8 mm \u2192 FNA with Tg washout (positive if >1 ng/mL).",
+          "LT4 to TSH 0.1\u20130.5 mIU/L. Avoid <0.1 without structural disease, especially >65 yr.",
+          (repeatRAI ? "Prior RAI given. Consider repeat 100\u2013150 mCi if prior WBS showed avid disease. Diagnostic I-131 WBS (2\u20135 mCi) first. Cumulative <600 mCi." : (initialRAI ? "RAI 100\u2013150 mCi (3.7\u20135.5 GBq) recommended. Prep: low-iodine diet, TSH >30." : "RAI not indicated for current profile. Focus on serial Tg/TgAb and imaging.")),
+          "Persistent rising Tg without structural correlate: FDG PET/CT (best TSH-stimulated) and MDT review for empiric RAI, surgery, or observation."
+        ];
+      } else if (response === "Structurally Incomplete") {
+        immediate = [
+          "Confirm structural disease: targeted US. Cervical LN: FNA + Tg washout (positive >1 ng/mL). Thyroid bed: 3-axis dimensions, proximity to trachea/esophagus/carotid/RLN.",
+          "Cross-sectional staging: CT neck/chest (non-iodinated contrast if RAI within 8 wk). If distant mets suspected (Tg >10, symptoms): FDG PET/CT.",
+          "LT4 for TSH 0.1\u20130.5 (or <0.1 for significant burden). ECG if palpitations; DEXA q2 yr postmenopausal.",
+          (repeatRAI ? "Prior RAI given. Diagnostic I-131 WBS. If avid: repeat 100\u2013200 mCi (dosimetry-guided). If non-avid: RAI-refractory \u2192 surgery (locoregional) or systemic (lenvatinib, sorafenib, selpercatinib if RET, larotrectinib if NTRK, dabrafenib+trametinib if BRAF)." : (initialRAI ? "RAI 150\u2013200 mCi. Post-therapy WBS 5\u20137 days. No uptake = potentially RAI-refractory." : "RAI strongly recommended. " + (isLob ? "Consider completion TT first. " : "") + "150\u2013200 mCi for structural disease.")),
+          "MDT: surgical resection, RAI re-treatment, EBRT (unresectable), systemic therapy (RAI-refractory progressive: lenvatinib 24 mg/d, sorafenib 800 mg/d; BRAF: dabrafenib+trametinib; RET: selpercatinib; NTRK: larotrectinib/entrectinib)."
+        ];
+      } else {
+        immediate = [
+          "Indeterminate response per ATA 2025: ~60\u201370% reclassify as excellent with observation.",
+          "Repeat Tg, TgAb, TSH in 6 mo (same assay). Document low-level Tg precisely for trend detection.",
+          "Neck US at 6\u201312 mo. Nonspecific findings: observe, no FNA unless growth documented.",
+          "LT4 per risk: " + (risk === "Low" || risk === "Low-Intermediate" ? "TSH 0.5\u20132.0 mIU/L." : "TSH 0.1\u20130.5 mIU/L until response clarified."),
+          "Reassess at 12\u201318 mo. Tg <0.2 + normal imaging \u2192 reclassify excellent. Rising Tg or structural findings \u2192 reclassify and adjust."
+        ];
+      }
+
+      var longTerm;
+      if (payload.activeSurveillance === "Yes") longTerm = "Per ATA 2025: US q6\u201312 mo for 5 yr, then q12\u201324 mo if stable. Intervene if growth >3 mm, ETE, or new lymphadenopathy. <1% clinically significant progression at 10 yr in selected patients.";
+      else if (isMTC) longTerm = "MTC: Ctn and CEA q3\u20136 mo for 2 yr, then q6\u201312 mo. Undetectable Ctn = biochemical cure (recurrence <5%). Calculate Ctn doubling time at each visit.";
+      else if (response === "Excellent" && (risk === "Low" || risk === "Low-Intermediate")) longTerm = "US annually 3\u20135 yr, then q2\u20133 yr. Tg annually; reduce after 5 yr undetectable. After 10\u201315 yr sustained excellent response, consider discharge per ATA 2025 complete remission framework.";
+      else if (response === "Excellent") longTerm = "US and Tg/TgAb q6\u201312 mo for 5 yr. Sustained excellent response: de-escalate TSH suppression, extend imaging. Lifelong follow-up for initially high-risk (5\u201310% late recurrence).";
+      else if (response === "Biochemically Incomplete") longTerm = "Tg/TgAb q3\u20136 mo. Doubling time <12 mo: cross-sectional imaging. ~30% develop structural disease; ~20% resolve; ~50% stable. TSH 0.1\u20130.5. Annual US + cross-sectional q1\u20132 yr.";
+      else if (response === "Structurally Incomplete") longTerm = "Active management: surgery for resectable locoregional, repeat RAI if avid, EBRT for unresectable. RAI-refractory progressive: lenvatinib/sorafenib; BRAF: dabrafenib+trametinib; RET: selpercatinib; NTRK: larotrectinib/entrectinib. TSH suppression. MDT q3\u20136 mo.";
+      else longTerm = "Serial monitoring q6\u201312 mo. 60\u201370% reclassify as excellent within 1\u20133 yr. Adjust once trajectory clear.";
+
+      var evidence = [];
+      evidence.push("RISK STRATIFICATION RATIONALE:");
+      if (payload.activeSurveillance === "Yes") evidence.push("Active surveillance for cT1aN0M0 PTC (<1 cm). Data: <8% growth >3 mm at 10 yr, <3.5% node mets. Risk: Low (recurrence <1\u20132%).\n");
+      else {
+        evidence.push("Histology: " + (payload.histology || "N/A") + ". TNM: T" + (payload.tStage || "x") + "N" + (payload.nStage || "x") + "M" + (payload.mStage || "x") + ".");
+        var riskRates = { "Low": "1\u20133%", "Low-Intermediate": "5\u201315%", "Intermediate-High": "15\u201340%", "High": "40\u201370%" };
+        evidence.push("ATA 2025 " + risk + " Risk. Structural recurrence: " + riskRates[risk] + ".\n");
+      }
+      evidence.push("RESPONSE RATIONALE:");
+      if (response === "Excellent") evidence.push("Negative imaging, Tg <0.2 suppressed (<1 stimulated), neg TgAb. Recurrence drops to 1\u20134% (low) or 5\u201310% (high).\n");
+      else if (response === "Biochemically Incomplete") evidence.push("Tg \u22651 suppressed or \u226510 stimulated, or rising Tg/TgAb without structural correlate. ~30% develop structural disease.\n");
+      else if (response === "Structurally Incomplete") evidence.push("Persistent/new structural disease on imaging. Management: RAI avidity, resectability, progression rate, molecular profile.\n");
+      else evidence.push("Nonspecific findings. ~60\u201370% reclassify as excellent within 1\u20133 yr.\n");
+      evidence.push("TSH TARGET: " + tshDetails.rationale);
+      if (repeatRAI) evidence.push("\nRAI: Prior RAI + incomplete response. Repeat if avid. Dosimetry-guided preferred. Cumulative <600 mCi. Non-avid = RAI-refractory.");
+      if (initialRAI) evidence.push("\nRAI: " + risk + " risk, no prior RAI. 30\u2013100 mCi (remnant ablation) to 100\u2013200 mCi (treatment intent). Low-iodine diet, TSH >30.");
+      if (isHGNATC && payload.activeSurveillance !== "Yes") evidence.push("\nHGNATC: Elevated mitotic index (\u22655/10 HPF) +/- necrosis. Reduced RAI avidity. Molecular profiling recommended.");
+      return { risk: risk, response: response, tshDetails: tshDetails, immediate: immediate, longTerm: longTerm, evidence: evidence.join("\n") };
+    }
+
+    function buildPrompt(formData) {
+      var isAS = formData.managementType === "Active Surveillance";
+      if (isAS) return "You are an expert endocrinologist following ATA 2025 Guidelines.\n\nPatient: Age " + formData.patientAge + ", Active Surveillance (cT1aN0M0 PTC).\n\nSTRICT JSON only:\n{\"risk\":\"Low\",\"response\":\"N/A - Active Surveillance\",\"tshCategory\":\"Within normal range\",\"tshRange\":\"0.5-2.0 mIU/L\",\"tshRationale\":\"...\",\"immediate\":[5 specific items],\"longTerm\":\"...\",\"evidence\":\"...\"}\nNo emojis. Specific doses/intervals/thresholds required.";
+      return "You are an expert endocrinologist following ATA 2025 Guidelines.\n\nPatient: Age " + formData.patientAge + ", Op " + formData.yearOfOperation + ", " + formData.surgeryType + ", " + formData.histology + ", T" + formData.tnmStaging.t + "N" + formData.tnmStaging.n + "M" + formData.tnmStaging.m + ", Tg: " + (formData.labResults.tg || "N/A") + ", TSH: " + (formData.labResults.tsh || "N/A") + ", Prior RAI: " + formData.receivedRAI + ", Tg: " + formData.tgTrend + ", TgAb: " + formData.tgAbTrend + ", Structural: " + formData.structuralDisease + ", Suspicious US: " + formData.suspiciousUS + "\n\nSTRICT JSON only:\n{\"risk\":\"...\",\"response\":\"...\",\"tshCategory\":\"...\",\"tshRange\":\"...\",\"tshRationale\":\"...\",\"immediate\":[5 items],\"longTerm\":\"...\",\"evidence\":\"...\"}\nNo emojis. Specific clinical details.";
+    }
+
+    /* ===================================================================
+       VALIDATION HELPERS
+       =================================================================== */
+    function validateAge(val) {
+      if (!val) return null;
+      var n = parseInt(val, 10);
+      if (isNaN(n)) return "Enter a valid number";
+      if (n < 18) return "Age must be 18 or older";
+      if (n > 110) return "Age must be 110 or younger";
+      return null;
+    }
+    function validateYear(val) {
+      if (!val) return null;
+      var n = parseInt(val, 10);
+      if (isNaN(n)) return "Enter a valid year";
+      if (val.length === 4 && n < 1920) return "Year must be 1920 or later";
+      if (n > CURRENT_YEAR) return "Year cannot be in the future";
+      if (val.length === 4 && (n < 1920 || n > CURRENT_YEAR)) return "Enter a year between 1920 and " + CURRENT_YEAR;
+      return null;
+    }
+    function isAgeValid(val) { return val !== "" && validateAge(val) === null; }
+    function isYearValid(val) { return validateYear(val) === null; } // year is optional
+
+    /* ===================================================================
+       UI COMPONENTS
+       =================================================================== */
+    function Card({ children, className }) {
+      return <div className={"card-medical p-5 md:p-6 " + (className || "")}>{children}</div>;
+    }
+    function SectionLabel({ num, title }) {
+      return (
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex-shrink-0 w-6 h-6 rounded-md bg-navy-800 text-white flex items-center justify-center text-xs font-bold">{num}</div>
+          <h2 className="heading text-base text-navy-900" style={{ fontWeight: 600 }}>{title}</h2>
+        </div>
+      );
+    }
+    function RadioGroup({ options, value, onChange, name, compact }) {
+      return (
+        <div className={compact ? "flex flex-wrap gap-2" : "space-y-1.5"}>
+          {options.map(function(opt) {
+            var val = typeof opt === "string" ? opt : opt.value;
+            var label = typeof opt === "string" ? opt : opt.label;
+            if (compact) return <button key={val} className={"px-4 py-2 rounded-lg text-sm font-medium border transition-all " + (value === val ? "border-clinical-700 bg-clinical-50 text-clinical-800" : "border-navy-200 bg-white text-navy-600 hover:border-navy-300")} onClick={function() { onChange(val); }}>{label}</button>;
+            return (
+              <label key={val} className={"option-card flex items-center gap-3 " + (value === val ? "selected" : "")}>
+                <input type="radio" name={name} className="w-4 h-4 accent-clinical-700" checked={value === val} onChange={function() { onChange(val); }} />
+                <span className="text-sm font-medium text-navy-800">{label}</span>
+              </label>
+            );
+          })}
+        </div>
+      );
+    }
+    function SelectField({ label, value, onChange, options, placeholder }) {
+      return (
+        <div>
+          {label && <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1.5">{label}</label>}
+          <select value={value} onChange={function(e) { onChange(e.target.value); }} className="input-field">
+            <option value="">{placeholder || "Select..."}</option>
+            {options.map(function(o) { var v = typeof o === "string" ? o : o.value; var l = typeof o === "string" ? o : o.label; return <option key={v} value={v}>{l}</option>; })}
+          </select>
+        </div>
+      );
+    }
+    function ValidatedNumericInput({ label, defaultValue, onUpdate, maxDigits, placeholder, validate }) {
+      var errState = useState(null);
+      var err = errState[0]; var setErr = errState[1];
+      return (
+        <div>
+          <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1.5">{label}</label>
+          <input className={"input-field " + (err ? "error" : "")} type="text" inputMode="numeric" autoComplete="off" defaultValue={defaultValue} onInput={function(e) {
+            var v = e.currentTarget.value.replace(/[^0-9]/g, "").slice(0, maxDigits || 4);
+            e.currentTarget.value = v;
+            var error = validate ? validate(v) : null;
+            setErr(error);
+            onUpdate(v, error);
+          }} placeholder={placeholder} />
+          {err && <p className="flex items-center gap-1 mt-1.5 text-xs text-red-600 font-medium"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>{err}</p>}
+        </div>
+      );
+    }
+    function TextInput({ label, defaultValue, onUpdate, placeholder, disabled }) {
+      return (
+        <div>
+          <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1.5">{label}</label>
+          <input className="input-field" type="text" autoComplete="off" defaultValue={defaultValue} onInput={function(e) { onUpdate(e.currentTarget.value); }} placeholder={placeholder} disabled={disabled} />
+        </div>
+      );
+    }
+
+    /* ===================================================================
+       PATIENT SUMMARY SIDEBAR
+       =================================================================== */
+    function PatientSidebar({ formData, isAS }) {
+      var items = [];
+      if (formData.patientAge) items.push(["Age", formData.patientAge + " yr"]);
+      if (formData.yearOfOperation) items.push(["Op year", formData.yearOfOperation]);
+      if (isAS) { items.push(["Management", "Active Surveillance"]); }
+      else {
+        if (formData.surgeryType) items.push(["Surgery", formData.surgeryType]);
+        if (formData.histology) items.push(["Histology", formData.histology.replace(/ \(.*\)/, "")]);
+        if (formData.tnmStaging.t || formData.tnmStaging.n || formData.tnmStaging.m)
+          items.push(["TNM", "T" + (formData.tnmStaging.t || "x") + "N" + (formData.tnmStaging.n || "x") + "M" + (formData.tnmStaging.m || "x")]);
+        if (formData.receivedRAI) items.push(["Prior RAI", formData.receivedRAI]);
+        if (formData.tgTrend) items.push(["Tg trend", formData.tgTrend]);
+        if (formData.tgAbTrend) items.push(["TgAb trend", formData.tgAbTrend]);
+        if (formData.structuralDisease) items.push(["Structural dz", formData.structuralDisease]);
+        if (formData.suspiciousUS) items.push(["Suspicious US", formData.suspiciousUS]);
+        if (formData.labResults.tg) items.push(["Tg value", formData.labResults.tg + " ng/mL"]);
+        if (formData.labResults.tsh) items.push(["TSH value", formData.labResults.tsh + " mIU/L"]);
+      }
+      if (items.length === 0) return null;
+      return (
+        <div className="patient-sidebar">
+          <div className="card-medical p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#627d98" strokeWidth="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              <h3 className="text-xs font-bold text-navy-500 uppercase tracking-wider">Patient Summary</h3>
+            </div>
+            <div className="space-y-1.5">
+              {items.map(function(item, i) {
+                return (
+                  <div key={i} className="flex justify-between text-xs">
+                    <span className="text-navy-400">{item[0]}</span>
+                    <span className="font-semibold text-navy-800 text-right ml-3">{item[1]}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ===================================================================
+       RECOMMENDATION DISPLAY
+       =================================================================== */
+    function RecommendationDisplay({ recData, loading }) {
+      var evState = useState(false);
+      var showEv = evState[0]; var setShowEv = evState[1];
+
+      if (loading) return (
+        <div>
+          <Card className="mt-4">
+            <div className="flex flex-col items-center py-10">
+              <div className="w-10 h-10 rounded-full animate-spin mb-4" style={{ border: "3px solid #d9e2ec", borderTopColor: "#147d64" }}></div>
+              <p className="text-navy-600 font-semibold text-sm">Generating recommendation...</p>
+            </div>
+          </Card>
+        </div>
+      );
+      if (!recData) return null;
+
+      var riskCls = { "Low": "risk-low", "Low-Intermediate": "risk-low-int", "Intermediate-High": "risk-int-high", "High": "risk-high" };
+      var respCls = { "Excellent": "resp-excellent", "Indeterminate": "resp-indeterminate", "Biochemically Incomplete": "resp-biochem", "Structurally Incomplete": "resp-structural" };
+      var tshRange = (recData.tshDetails && recData.tshDetails.range) || recData.tshRange || "\u2014";
+
+      return (
+        <div className="space-y-4">
+          <Card>
+            <div className="flex items-center gap-3 mb-5">
+              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-clinical-700 text-white flex items-center justify-center">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              </div>
+              <h2 className="heading text-lg text-navy-900" style={{ fontWeight: 600 }}>Clinical Recommendation</h2>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-5">
+              <div className={"p-3 rounded-lg border " + (riskCls[recData.risk] || "bg-navy-50")}>
+                <p className="font-bold opacity-70" style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Risk Stratification</p>
+                <p className="text-sm font-bold mt-0.5">{recData.risk}</p>
+              </div>
+              <div className={"p-3 rounded-lg " + (respCls[recData.response] || "bg-navy-50")}>
+                <p className="font-bold opacity-70" style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>Response to Therapy</p>
+                <p className="text-sm font-bold mt-0.5">{recData.response}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-amber-50 text-amber-900">
+                <p className="font-bold opacity-70" style={{ fontSize: "10px", textTransform: "uppercase", letterSpacing: "0.05em" }}>TSH Target</p>
+                <p className="text-xs font-bold mt-0.5">{tshRange}</p>
+              </div>
+            </div>
+
+            <div className="mb-5" style={{ borderLeft: "3px solid #2b6cb0", paddingLeft: "16px" }}>
+              <h3 className="text-xs font-bold text-navy-500 uppercase tracking-wider mb-3">Immediate Management (Next 1-6 Months)</h3>
+              <div className="space-y-3">
+                {recData.immediate.map(function(item, i) {
+                  return <div key={i} className="flex gap-3 text-sm text-navy-700 leading-relaxed"><span className="flex-shrink-0 w-5 h-5 rounded-full bg-navy-100 text-navy-600 flex items-center justify-center font-bold mt-0.5" style={{ fontSize: "10px" }}>{i + 1}</span><span>{item}</span></div>;
+                })}
+              </div>
+            </div>
+
+            <div style={{ borderLeft: "3px solid #718096", paddingLeft: "16px" }}>
+              <h3 className="text-xs font-bold text-navy-500 uppercase tracking-wider mb-3">Long-Term Strategy</h3>
+              <p className="text-sm text-navy-700 leading-relaxed">{recData.longTerm}</p>
+            </div>
+          </Card>
+
+          <div className="card-medical overflow-hidden">
+            <button className="w-full flex items-center justify-between p-4 text-left hover:bg-navy-50 transition-colors" onClick={function() { setShowEv(!showEv); }}>
+              <div className="flex items-center gap-3">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#627d98" strokeWidth="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+                <span className="text-sm font-semibold text-navy-700">Supporting Evidence & Rationale</span>
+              </div>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#627d98" strokeWidth="2" style={{ transform: showEv ? "rotate(180deg)" : "rotate(0deg)", transition: "transform 0.3s" }}><polyline points="6 9 12 15 18 9" /></svg>
+            </button>
+            <div className={"evidence-panel " + (showEv ? "open" : "")}>
+              <div className="px-4 pb-4"><div className="section-line mb-3" />
+                <pre className="whitespace-pre-wrap text-sm text-navy-600 leading-relaxed" style={{ fontFamily: "'DM Sans', system-ui, sans-serif" }}>{recData.evidence || "No additional evidence."}</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    /* ===================================================================
+       MAIN APP
+       =================================================================== */
+    function App() {
+      var loadState = useState(false); var loading = loadState[0]; var setLoading = loadState[1];
+      var recState = useState(null); var recData = recState[0]; var setRecData = recState[1];
+      var fvState = useState(1); var formVersion = fvState[0]; var setFormVersion = fvState[1];
+      var ageErrState = useState(null); var ageErr = ageErrState[0]; var setAgeErr = ageErrState[1];
+      var yearErrState = useState(null); var yearErr = yearErrState[0]; var setYearErr = yearErrState[1];
+
+      var fdState = useState({
+        patientAge: "", yearOfOperation: "", managementType: "", surgeryType: "",
+        asEligibility: { presumedPTCmicro: "", noClinicalNodes: "", noETEorInvasion: "", notNearCritical: "" },
+        histology: "", tnmStaging: { t: "", n: "", m: "" }, receivedRAI: "", tgTrend: "", tgAbTrend: "",
+        structuralDisease: "", labResults: { tg: "", tsh: "" }, suspiciousUS: ""
+      });
+      var formData = fdState[0]; var setFormData = fdState[1];
+
+      var isAS = formData.managementType === "Active Surveillance";
+      var isSurgery = formData.managementType === "Surgery";
+
+      var update = useCallback(function(field, value) {
+        setFormData(function(prev) { var next = Object.assign({}, prev); next[field] = value; return next; });
+      }, []);
+      var updateNested = useCallback(function(path, value) {
+        var parts = path.split(".");
+        setFormData(function(prev) { var next = Object.assign({}, prev); next[parts[0]] = Object.assign({}, prev[parts[0]]); next[parts[0]][parts[1]] = value; return next; });
+      }, []);
+
+      /* Clear Tg value when trend set to Undetectable */
+      useEffect(function() {
+        if (formData.tgTrend === "Undetectable") {
+          setFormData(function(prev) {
+            if (prev.labResults.tg !== "") {
+              var next = Object.assign({}, prev);
+              next.labResults = Object.assign({}, prev.labResults, { tg: "" });
+              return next;
+            }
+            return prev;
+          });
+        }
+      }, [formData.tgTrend]);
+
+      /* Visibility logic */
+      var ageValid = formData.patientAge !== "" && !ageErr;
+      var yearValid = !yearErr;
+      var demographicsOk = ageValid && yearValid;
+
+      var hasManagement = !!formData.managementType;
+      var hasSurgeryType = isSurgery ? !!formData.surgeryType : false;
+      var asE = formData.asEligibility;
+      var hasASElig = isAS ? (asE.presumedPTCmicro === "Yes" && asE.noClinicalNodes === "Yes" && asE.noETEorInvasion === "Yes" && asE.notNearCritical === "Yes") : false;
+      var managementOk = isSurgery ? hasSurgeryType : (isAS ? hasASElig : false);
+
+      var hasHistology = isAS || !!formData.histology;
+      var hasTNM = isAS || (!!formData.tnmStaging.t && !!formData.tnmStaging.n && !!formData.tnmStaging.m);
+      var hasResponse = isAS || (!!formData.receivedRAI && !!formData.tgTrend && !!formData.tgAbTrend && !!formData.structuralDisease);
+      var hasUS = isAS || !!formData.suspiciousUS;
+
+      var show2 = demographicsOk;
+      var show3 = show2 && managementOk && !isAS;
+      var show4 = show3 && hasHistology;
+      var show5 = isAS ? (show2 && managementOk) : (show4 && hasTNM);
+      var show6 = isAS ? false : (show5 && hasResponse);
+      var showGen = isAS ? (show2 && managementOk) : (show6 && hasUS);
+
+      var computed = useMemo(function() {
+        var asF = isAS ? "Yes" : "No";
+        return {
+          risk: pickRisk({ histology: formData.histology, tStage: formData.tnmStaging.t, nStage: formData.tnmStaging.n, mStage: formData.tnmStaging.m, activeSurveillance: asF }),
+          response: pickResponse({ activeSurveillance: asF, suspiciousUS: formData.suspiciousUS, structuralDisease: formData.structuralDisease, tgTrend: formData.tgTrend, tgAbTrend: formData.tgAbTrend })
+        };
+      }, [formData, isAS]);
+
+      var resetAll = useCallback(function() {
+        setRecData(null); setAgeErr(null); setYearErr(null);
+        setFormVersion(function(v) { return v + 1; });
+        setFormData({ patientAge: "", yearOfOperation: "", managementType: "", surgeryType: "", asEligibility: { presumedPTCmicro: "", noClinicalNodes: "", noETEorInvasion: "", notNearCritical: "" }, histology: "", tnmStaging: { t: "", n: "", m: "" }, receivedRAI: "", tgTrend: "", tgAbTrend: "", structuralDisease: "", labResults: { tg: "", tsh: "" }, suspiciousUS: "" });
+      }, []);
+
+      var generate = useCallback(function() {
+        setLoading(true); setRecData(null);
+        function useMock() {
+          var p = { activeSurveillance: isAS ? "Yes" : "No", histology: formData.histology, tStage: formData.tnmStaging.t, nStage: formData.tnmStaging.n, mStage: formData.tnmStaging.m, suspiciousUS: formData.suspiciousUS, structuralDisease: formData.structuralDisease, tgTrend: formData.tgTrend, tgAbTrend: formData.tgAbTrend, receivedRAI: formData.receivedRAI, surgeryType: formData.surgeryType };
+          setRecData(buildMockRecommendation(p)); setLoading(false);
+        }
+        fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ model: "claude-sonnet-4-20250514", max_tokens: 2000, messages: [{ role: "user", content: buildPrompt(formData) }] })
+        }).then(function(r) { if (!r.ok) throw new Error(); return r.json(); })
+        .then(function(data) {
+          if (data.content && data.content[0]) {
+            try { var t = data.content[0].text.replace(/```json|```/g, "").trim(); var p = JSON.parse(t); setRecData({ risk: p.risk, response: p.response, tshDetails: { category: p.tshCategory, range: p.tshRange, rationale: p.tshRationale }, tshRange: p.tshRange, immediate: p.immediate || [], longTerm: p.longTerm || "", evidence: p.evidence || "" }); setLoading(false); return; } catch(e) {}
+          } useMock();
+        }).catch(function() { useMock(); });
+      }, [formData, isAS]);
+
+      var recRef = useRef(null);
+      useEffect(function() { if (recData && recRef.current) recRef.current.scrollIntoView({ behavior: "smooth", block: "start" }); }, [recData]);
+
+      var showResults = recData || loading;
+
+      return (
+        <div className="min-h-screen py-8 px-4">
+          <div className={"mx-auto transition-all duration-300 " + (showResults ? "max-w-5xl" : "max-w-2xl")}>
+
+            {/* Header */}
+            <div className="mb-6">
+              <div className="flex items-center gap-2 mb-1.5">
+                <div className="w-2 h-2 rounded-full bg-clinical-600"></div>
+                <span className="text-clinical-700" style={{ fontSize: "10px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.15em" }}>Clinical Decision Support</span>
+              </div>
+              <h1 className="heading text-2xl md:text-3xl text-navy-900 leading-tight" style={{ fontWeight: 700 }}>ATA 2025 Thyroid Cancer Management Assistant</h1>
+              <p className="text-navy-400 text-sm mt-1">Evidence-based recommendations for differentiated thyroid cancer</p>
+            </div>
+
+            {/* FORM */}
+            <div className={"space-y-4 " + (showResults ? "mb-6" : "")}>
+              <div className={"max-w-2xl " + (showResults ? "" : "mx-auto")} style={showResults ? {} : {}}>
+                <div className="space-y-4">
+
+                  {/* 1. Demographics */}
+                  <Card key={"s1-" + formVersion}>
+                    <SectionLabel num={1} title="Patient Demographics" />
+                    <div className="grid grid-cols-2 gap-4">
+                      <ValidatedNumericInput label="Age (years)" defaultValue={formData.patientAge} maxDigits={3} placeholder="18\u2013110" validate={validateAge}
+                        onUpdate={function(v, err) { update("patientAge", v); setAgeErr(err); }} />
+                      <ValidatedNumericInput label="Year of operation" defaultValue={formData.yearOfOperation} maxDigits={4} placeholder={"1920\u2013" + CURRENT_YEAR} validate={validateYear}
+                        onUpdate={function(v, err) { update("yearOfOperation", v); setYearErr(err); }} />
+                    </div>
+                  </Card>
+
+                  {/* 2. Management */}
+                  {show2 && (
+                    <Card className="section-appear" key={"s2-" + formVersion}>
+                      <SectionLabel num={2} title="Management Approach" />
+                      <RadioGroup options={["Surgery", "Active Surveillance"]} value={formData.managementType} onChange={function(v) { update("managementType", v); }} name="mgmt" compact={true} />
+                      {isSurgery && (
+                        <div className="mt-4 pt-4 border-t border-navy-100">
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">Extent of surgery</p>
+                          <RadioGroup options={["Total Thyroidectomy", "Lobectomy"]} value={formData.surgeryType} onChange={function(v) { update("surgeryType", v); }} name="st" compact={true} />
+                        </div>
+                      )}
+                      {isAS && (
+                        <div className="mt-4 pt-4 border-t border-navy-100">
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">Confirm eligibility (all must be Yes)</p>
+                          <div className="space-y-1.5">
+                            {AS_CRITERIA.map(function(c) {
+                              return (
+                                <div key={c.key} className="flex items-center justify-between p-2.5 bg-navy-50 rounded-lg">
+                                  <span className="text-xs text-navy-700 flex-1 mr-2">{c.label}</span>
+                                  <div className="flex gap-1">
+                                    {["Yes", "No"].map(function(v) { return <button key={v} className={"px-2.5 py-0.5 rounded text-xs font-semibold transition-all " + (formData.asEligibility[c.key] === v ? (v === "Yes" ? "bg-clinical-700 text-white" : "bg-red-500 text-white") : "bg-white border border-navy-200 text-navy-500")} onClick={function() { updateNested("asEligibility." + c.key, v); }}>{v}</button>; })}
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      )}
+                    </Card>
+                  )}
+
+                  {/* 3. Histology */}
+                  {show3 && (
+                    <Card className="section-appear" key={"s3-" + formVersion}>
+                      <SectionLabel num={3} title="Histological Diagnosis" />
+                      <RadioGroup options={HISTOLOGY_OPTIONS} value={formData.histology} onChange={function(v) { update("histology", v); }} name="histo" />
+                    </Card>
+                  )}
+
+                  {/* 4. TNM */}
+                  {show4 && (
+                    <Card className="section-appear" key={"s4-" + formVersion}>
+                      <SectionLabel num={4} title="Pathological TNM Staging (AJCC 8th Ed)" />
+                      <div className="space-y-3">
+                        <SelectField label="T Stage" value={formData.tnmStaging.t} onChange={function(v) { updateNested("tnmStaging.t", v); }} options={T_STAGES} placeholder="Select T stage" />
+                        <SelectField label="N Stage" value={formData.tnmStaging.n} onChange={function(v) { updateNested("tnmStaging.n", v); }} options={N_STAGES} placeholder="Select N stage" />
+                        <SelectField label="M Stage" value={formData.tnmStaging.m} onChange={function(v) { updateNested("tnmStaging.m", v); }} options={M_STAGES} placeholder="Select M stage" />
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* 5. Response */}
+                  {show5 && !isAS && (
+                    <Card className="section-appear" key={"s5-" + formVersion}>
+                      <SectionLabel num={5} title="Response Assessment" />
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">Previous RAI therapy?</p>
+                          <RadioGroup options={["Yes", "No"]} value={formData.receivedRAI} onChange={function(v) { update("receivedRAI", v); }} name="rai" compact={true} />
+                        </div>
+                        <div className="section-line" />
+                        <div>
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">Thyroglobulin (Tg) trend</p>
+                          <RadioGroup options={["Rising", "Stable", "Declining", "Undetectable"]} value={formData.tgTrend} onChange={function(v) { update("tgTrend", v); }} name="tg" compact={true} />
+                        </div>
+                        <div>
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">TgAb trend</p>
+                          <RadioGroup options={["Rising", "Stable", "Declining", "Negative"]} value={formData.tgAbTrend} onChange={function(v) { update("tgAbTrend", v); }} name="tgab" compact={true} />
+                        </div>
+                        <div className="section-line" />
+                        <div>
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">Known structural disease?</p>
+                          <RadioGroup options={["Yes", "No"]} value={formData.structuralDisease} onChange={function(v) { update("structuralDisease", v); }} name="struct" compact={true} />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* 6. Imaging & Labs */}
+                  {show6 && (
+                    <Card className="section-appear" key={"s6-" + formVersion}>
+                      <SectionLabel num={6} title="Current Imaging & Laboratory" />
+                      <div className="space-y-4">
+                        <div>
+                          <p className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-2">Suspicious findings on latest neck ultrasound?</p>
+                          <RadioGroup options={["Yes", "No"]} value={formData.suspiciousUS} onChange={function(v) { update("suspiciousUS", v); }} name="us" compact={true} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-xs font-semibold text-navy-500 uppercase tracking-wide mb-1.5">Latest Tg (ng/mL)</label>
+                            {formData.tgTrend === "Undetectable" ? (
+                              <div>
+                                <input className="input-field" disabled value="" placeholder="N/A (Undetectable)" />
+                                <p className="text-xs text-navy-400 mt-1">Disabled: Tg trend is Undetectable</p>
+                              </div>
+                            ) : (
+                              <input className="input-field" type="text" autoComplete="off" key={"tg-" + formVersion} defaultValue={formData.labResults.tg} onInput={function(e) { updateNested("labResults.tg", e.currentTarget.value); }} placeholder="e.g., 0.2" />
+                            )}
+                          </div>
+                          <TextInput label="Latest TSH (mIU/L)" defaultValue={formData.labResults.tsh} onUpdate={function(v) { updateNested("labResults.tsh", v); }} placeholder="e.g., 1.5" />
+                        </div>
+                      </div>
+                    </Card>
+                  )}
+
+                  {/* Generate */}
+                  {showGen && !recData && (
+                    <div className="section-appear">
+                      <div className="flex flex-wrap gap-2 mb-3">
+                        <span className={"inline-block px-3 py-1 rounded-full text-xs font-bold border " + ({ "Low": "risk-low", "Low-Intermediate": "risk-low-int", "Intermediate-High": "risk-int-high", "High": "risk-high" }[computed.risk] || "")}>{computed.risk} Risk</span>
+                        {!isAS && <span className={"inline-block px-3 py-1 rounded-full text-xs font-bold " + ({ "Excellent": "resp-excellent", "Indeterminate": "resp-indeterminate", "Biochemically Incomplete": "resp-biochem", "Structurally Incomplete": "resp-structural" }[computed.response] || "")}>{computed.response} Response</span>}
+                      </div>
+                      <button className="btn-primary w-full py-3 rounded-lg text-sm font-semibold" disabled={loading} onClick={generate}>{loading ? "Generating..." : "Generate Recommendation"}</button>
+                    </div>
+                  )}
+
+                </div>
+              </div>
+            </div>
+
+            {/* RESULTS — two-column layout with sidebar */}
+            {showResults && (
+              <div ref={recRef} className="flex gap-6 items-start">
+                <div className="flex-1 min-w-0">
+                  <RecommendationDisplay recData={recData} loading={loading} />
+                </div>
+                <div className="hidden lg:block w-64 flex-shrink-0">
+                  <PatientSidebar formData={formData} isAS={isAS} />
+                </div>
+              </div>
+            )}
+
+            {/* Mobile sidebar — show below on small screens */}
+            {recData && (
+              <div className="lg:hidden mt-4">
+                <PatientSidebar formData={formData} isAS={isAS} />
+              </div>
+            )}
+
+            {/* New Patient */}
+            {recData && (
+              <div className="text-center pt-6">
+                <button className="btn-secondary px-5 py-2.5 rounded-lg text-sm font-semibold" onClick={resetAll}>New Patient Assessment</button>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="mt-10 pt-6 border-t border-navy-100 text-center">
+              <p className="text-navy-400" style={{ fontSize: "11px" }}>Based on the 2025 American Thyroid Association Management Guidelines for Adult Patients with Differentiated Thyroid Cancer</p>
+              <p className="text-navy-300 mt-1" style={{ fontSize: "10px" }}>For clinical decision support only. Always apply individual clinical judgment.</p>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    ReactDOM.createRoot(document.getElementById("root")).render(React.createElement(App));
+  </script>
+</body>
+</html>
