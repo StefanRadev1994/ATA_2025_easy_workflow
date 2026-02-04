@@ -3,6 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <title>ATA 2025 Thyroid Cancer Clinical Decision Support</title>
+  <title>App made by dr. Stefan Radev</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -657,7 +658,7 @@
                     <div className="grid grid-cols-2 gap-4">
                       <ValidatedNumericInput label="Age (years)" defaultValue={formData.patientAge} maxDigits={3} placeholder="18\u2013110" validate={validateAge}
                         onUpdate={function(v, err) { update("patientAge", v); setAgeErr(err); }} />
-                      <ValidatedNumericInput label="Year of operation" defaultValue={formData.yearOfOperation} maxDigits={4} placeholder={"1920\u2013" + CURRENT_YEAR} validate={validateYear}
+                      <ValidatedNumericInput label="Year of operation" defaultValue={formData.yearOfOperation} maxDigits={4} placeholder={"1920-" + CURRENT_YEAR} validate={validateYear}
                         onUpdate={function(v, err) { update("yearOfOperation", v); setYearErr(err); }} />
                     </div>
                   </Card>
