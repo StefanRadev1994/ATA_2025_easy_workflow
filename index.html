@@ -656,7 +656,7 @@
                   <Card key={"s1-" + formVersion}>
                     <SectionLabel num={1} title="Patient Demographics" />
                     <div className="grid grid-cols-2 gap-4">
-                      <ValidatedNumericInput label="Age (years)" defaultValue={formData.patientAge} maxDigits={3} placeholder="18\u2013110" validate={validateAge}
+                      <ValidatedNumericInput label="Age (years)" defaultValue={formData.patientAge} maxDigits={3} placeholder="18-110" validate={validateAge}
                         onUpdate={function(v, err) { update("patientAge", v); setAgeErr(err); }} />
                       <ValidatedNumericInput label="Year of operation" defaultValue={formData.yearOfOperation} maxDigits={4} placeholder={"1920-" + CURRENT_YEAR} validate={validateYear}
                         onUpdate={function(v, err) { update("yearOfOperation", v); setYearErr(err); }} />
